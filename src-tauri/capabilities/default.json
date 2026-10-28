@@ -1,7 +1,27 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "主視窗只需要核心 IPC；開啟網址由後端驗證後執行，前端不直接取得 opener 權限",
+  "description": "只有主視窗能呼叫 app 指令；擷取 / 搜尋視窗載入外部網頁，不授權任何指令。開啟網址由後端驗證後執行，前端不直接取得 opener 權限",
   "windows": ["main"],
-  "permissions": ["core:default"]
+  "permissions": [
+    "core:default",
+    "allow-get-settings",
+    "allow-save-settings",
+    "allow-test-connection",
+    "allow-get-schema",
+    "allow-field-suggestions",
+    "allow-search-lyrics",
+    "allow-search-videos",
+    "allow-search-lyricstranslate",
+    "allow-search-kkbox",
+    "allow-to-bilingual",
+    "allow-combine-lyrics",
+    "allow-convert-chinese",
+    "allow-fetch-song",
+    "allow-capture-song",
+    "allow-import-song",
+    "allow-open-link",
+    "allow-check-update",
+    "allow-restart-app"
+  ]
 }

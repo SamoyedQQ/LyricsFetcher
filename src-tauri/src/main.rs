@@ -404,6 +404,11 @@ fn show_window(app: &tauri::AppHandle, label: &'static str) {
     });
 }
 
+/// 外部頁面不得把擷取 / 搜尋視窗導向 app 本機頁面（tauri.localhost 等），否則會取得本機來源
+fn is_local_host(url: &Url) -> bool {
+    url.host_str().is_some_and(|h| h == "localhost" || h.ends_with(".localhost"))
+}
+
 fn decode_capture<T: serde::de::DeserializeOwned>(url: &Url) -> CmdResult<T> {
     let data = url
         .query_pairs()
@@ -419,7 +424,7 @@ fn decode_capture<T: serde::de::DeserializeOwned>(url: &Url) -> CmdResult<T> {
 /// 以內嵌瀏覽器（WebView2）載入頁面並擷取歌詞，用於需要瀏覽器驗證的網站（如 KKBOX）。
 ///
 /// 視窗可見：若網站要求人機驗證，由使用者自行完成。
-/// 外部頁面沒有任何 IPC 權限（capabilities 只授權 main 視窗）。
+/// 外部頁面沒有任何 IPC 權限：capabilities 只授權 main 視窗，且不允許導向 app 本機頁面。
 ///
 /// `columns_only`：瀏覽模式。使用者在視窗中自行搜尋並點進 LyricsTranslate 的翻譯頁，
 /// 出現左右對照的歌詞時才擷取。
@@ -465,6 +470,9 @@ async fn capture_song(
         .visible(columns_only)
         .initialization_script(&script)
         .on_navigation(move |nav| {
+            if is_local_host(nav) {
+                return false;
+            }
             if nav.host_str() != Some(CAPTURE_HOST) {
                 return true;
             }
@@ -594,6 +602,9 @@ async fn browser_search<T: serde::de::DeserializeOwned + Send + 'static>(
         .visible(false)
         .initialization_script(script)
         .on_navigation(move |nav| {
+            if is_local_host(nav) {
+                return false;
+            }
             if nav.host_str() != Some(CAPTURE_HOST) {
                 return true;
             }

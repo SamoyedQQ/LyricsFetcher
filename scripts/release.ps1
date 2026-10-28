@@ -27,7 +27,8 @@ Copy-Item target\release\lyrics-fetcher-gui.exe, target\release\lyrics-fetcher.e
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 [IO.Compression.ZipFile]::CreateFromDirectory((Resolve-Path $stage), "$PWD\dist\$name", [IO.Compression.CompressionLevel]::Optimal, $true, [Text.Encoding]::UTF8)
 
-cargo tauri signer sign -f $key --password= "dist\$name"
+# 私鑰需有密碼：由環境變數 TAURI_SIGNING_PRIVATE_KEY_PASSWORD 提供，未設定時 signer 會詢問
+cargo tauri signer sign -f $key "dist\$name"
 if ($LASTEXITCODE -ne 0) { throw "簽章失敗" }
 
 gh release create "v$version" "dist\$name" "dist\$name.sig" --title "Lyrics Fetcher v$version" --generate-notes
