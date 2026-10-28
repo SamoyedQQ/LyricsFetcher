@@ -21,7 +21,7 @@ if ($LASTEXITCODE -ne 0) { throw "編譯失敗" }
 $stage = "dist\LyricsFetcher"
 if (Test-Path dist) { Remove-Item dist -Recurse -Force }
 New-Item -ItemType Directory -Force $stage | Out-Null
-Copy-Item target\release\lyrics-fetcher-gui.exe, target\release\lyrics-fetcher.exe, .env.example, packaging\* $stage
+Copy-Item target\release\lyrics-fetcher-gui.exe, target\release\lyrics-fetcher.exe, .env.example, LICENSE, packaging\* $stage
 
 # 以 UTF-8 檔名打包（中文檔名在其他解壓程式也能正確顯示）
 Add-Type -AssemblyName System.IO.Compression.FileSystem

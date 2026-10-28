@@ -151,7 +151,8 @@ cargo build --release --workspace
 ### 發布新版本
 
 1. 更新 `Cargo.toml`、`src-tauri/Cargo.toml`、`src-tauri/tauri.conf.json` 的版本號，commit 並推送
-2. 執行 `powershell -ExecutionPolicy Bypass -File scriptselease.ps1`：編譯、打包 zip、以私鑰簽章（`.zip.sig`），並建立 GitHub Release
+2. 執行 `powershell -ExecutionPolicy Bypass -File scripts
+elease.ps1`：編譯、打包 zip、以私鑰簽章（`.zip.sig`），並建立 GitHub Release
 
 簽章私鑰在 `%USERPROFILE%\.tauri\lyricsfetcher.key`（以 `cargo tauri signer generate` 產生，不在 repo 中）。**請備份這個檔案**：遺失後就無法簽署新版，已安裝的程式也就無法自動更新。
 
@@ -317,6 +318,16 @@ scripts/release.ps1  發布流程：編譯、打包、簽章、建立 GitHub Rel
 - **輸入檢查**：前端送來的歌詞上限 1 MiB，網址與欄位連結只接受 http(s)，selector 會先驗證語法
 - **搜尋**：查詢字串一律經過 URL 編碼；回應有大小上限；YouTube 影片 ID 只接受英數字與 `-_`
 - **自動更新**：只從 GitHub 的 https 網址下載，安裝前以內嵌公鑰驗證 minisign 簽章；沒有簽章或驗證失敗一律不安裝
+
+## 授權
+
+本專案以 [GNU GPL v3.0 或更新版本](LICENSE)（GPL-3.0-or-later）授權：
+
+- 任何人都可以免費使用、複製、修改
+- 散布修改後的版本時，必須同樣以 GPL 授權並公開原始碼，不能改成封閉原始碼
+- 本程式不提供任何擔保
+
+簡繁轉換使用的 [zhconv](https://crates.io/crates/zhconv) 為 GPL-2.0-or-later，與本授權相容。
 
 ## 注意事項
 

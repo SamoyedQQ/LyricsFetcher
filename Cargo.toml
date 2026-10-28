@@ -2,6 +2,7 @@
 name = "lyrics-fetcher"
 version = "0.2.0"
 edition = "2024"
+license = "GPL-3.0-or-later"
 description = "一鍵抓取歌詞網頁並匯入 Notion 資料庫的 CLI 工具"
 
 [dependencies]
