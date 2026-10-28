@@ -129,6 +129,22 @@ KKBOX 前面有 AWS WAF 人機驗證，一般 HTTP 請求只會拿到驗證頁�
 - 其他設定存放在應用程式設定資料夾的 `settings.json`
 - 抓取網頁時會同時預先讀取 Notion 資料庫結構並快取，按下匯入時就不必再等待
 
+## 技術棧
+
+| 層級 | 使用技術 |
+|---|---|
+| 語言 | Rust（edition 2024）、JavaScript、HTML / CSS |
+| 桌面框架 | [Tauri v2](https://tauri.app)（Windows 使用 WebView2） |
+| 前端 | 原生 HTML / CSS / JavaScript，不使用任何前端框架或打包工具 |
+| 非同步與網路 | [tokio](https://tokio.rs)、[reqwest](https://github.com/seanmonstar/reqwest)（gzip / brotli 壓縮傳輸） |
+| 網頁解析 | [scraper](https://github.com/causal-agent/scraper)（CSS selector）、[encoding_rs](https://github.com/hsivonen/encoding_rs)（Big5 等舊編碼） |
+| 資料格式 | [serde](https://serde.rs) / serde_json |
+| 簡繁轉換 | [zhconv](https://github.com/Gowee/zhconv-rs)（MediaWiki 字詞表） |
+| 金鑰保存 | [keyring](https://github.com/hwchen/keyring-rs)（Windows Credential Manager / macOS Keychain） |
+| 自動更新 | GitHub Releases API、[minisign-verify](https://github.com/jedisct1/rust-minisign-verify)（簽章驗證）、[zip](https://github.com/zip-rs/zip2) |
+| 外部服務 | Notion API；歌詞來源 Genius、KKBOX、LyricsTranslate、魔鏡歌詞網、AZLyrics 等；YouTube 伴奏搜尋；DuckDuckGo |
+| 發布 | PowerShell 腳本（`scripts\release.ps1`）、GitHub CLI、`cargo tauri signer` |
+
 ## 功能
 
 - **模擬 Chrome 請求**：送出 Chrome 的 User-Agent 與 `Accept`、`Sec-Fetch-*` 等標頭，可以通過基本的防爬檢查
