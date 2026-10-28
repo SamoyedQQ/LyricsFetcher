@@ -1,0 +1,32 @@
+[package]
+name = "lyrics-fetcher"
+version = "0.1.0"
+edition = "2024"
+description = "一鍵抓取歌詞網頁並匯入 Notion 資料庫的 CLI 工具"
+
+[dependencies]
+# 非同步 runtime
+tokio = { version = "1.54.1", features = ["full"] }
+# HTTP 客戶端（json 序列化 + gzip/brotli 壓縮傳輸，減少下載量）
+reqwest = { version = "0.13.5", features = ["json", "gzip", "brotli"] }
+# HTML 解析
+scraper = "0.29.0"
+# 資料序列化
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+# .env 讀取
+dotenvy = "0.15.7"
+# 非 UTF-8 網頁（如 Big5）轉碼；reqwest 已間接依賴，不增加編譯量
+encoding_rs = "0.8.42"
+# 簡繁轉換（MediaWiki 字詞表，關閉壓縮以免需要 C 編譯的 zstd）
+zhconv = { version = "0.4.2", default-features = false, features = ["mediawiki-hans", "mediawiki-hant", "mediawiki-tw"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[workspace]
+members = [".", "src-tauri"]

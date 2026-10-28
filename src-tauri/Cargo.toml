@@ -1,0 +1,21 @@
+[package]
+name = "lyrics-fetcher-gui"
+version = "0.1.0"
+edition = "2024"
+description = "Lyrics Fetcher 桌面版"
+
+[build-dependencies]
+tauri-build = "2.7.4"
+
+[dependencies]
+# 與 CLI 共用的核心邏輯（爬蟲、Notion API）
+lyrics-fetcher = { path = ".." }
+tauri = "2.12.5"
+# 以系統預設瀏覽器開啟建立好的 Notion 頁面
+tauri-plugin-opener = "2.7.2"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+# join!、oneshot、timeout；runtime 由 Tauri 提供
+tokio = { version = "1.54.1", features = ["macros", "sync", "time"] }
+# API Key 存在作業系統的認證管理員（Windows Credential Manager / macOS Keychain / Secret Service）
+keyring = { version = "3", features = ["windows-native", "apple-native", "sync-secret-service"] }
