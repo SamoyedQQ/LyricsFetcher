@@ -7,6 +7,8 @@ const $ = (id) => document.getElementById(id);
 const HISTORY_KEY = "lf.history";
 const MODE_KEY = "lf.mode";
 const AUTO_HANT_KEY = "lf.autoHant";
+const FONT_KEY = "lf.lyricsFont";
+const FONT_DEFAULT = 14.5;
 const HISTORY_MAX = 12;
 /** 有人機驗證、一般請求抓不到的網站：直接改用內嵌瀏覽器擷取 */
 const BROWSER_HOSTS = ["kkbox.com", "lyricstranslate.com"];
@@ -995,6 +997,21 @@ document.querySelectorAll(".manual-btn").forEach((b) => b.addEventListener("clic
 el.importBtn.addEventListener("click", () => !state.busy && importSong());
 el.videoResearch.addEventListener("click", researchVideos);
 el.bilingual.addEventListener("change", toggleBilingual);
+/** 預覽歌詞字體大小：立即套用並記住（只影響畫面，不影響匯入內容） */
+function applyFontSize(size) {
+  const n = Math.min(24, Math.max(12, Number(size) || FONT_DEFAULT));
+  document.documentElement.style.setProperty("--lyrics-size", `${n}px`);
+  $("s-font").value = String(n);
+  $("s-font-value").textContent = `${n}px`;
+  return n;
+}
+
+$("s-font").addEventListener("input", (e) => {
+  const n = applyFontSize(e.target.value);
+  try { localStorage.setItem(FONT_KEY, String(n)); } catch { /* 只是不記住 */ }
+  autosize();
+});
+
 el.autoHant.addEventListener("change", () => {
   try { localStorage.setItem(AUTO_HANT_KEY, el.autoHant.checked ? "1" : "0"); } catch { /* 只是不記住 */ }
   if (!el.preview.hidden) autoConvert();
@@ -1097,6 +1114,25 @@ window.addEventListener("drop", (e) => {
   }
 });
 
+// ─── 自動更新 ────────────────────────────────────────
+
+/** 背景檢查 GitHub 上的新版；已下載並替換時提示重新啟動（不重新啟動的話，下次開啟就是新版） */
+async function checkUpdate() {
+  try {
+    const s = await invoke("check_update");
+    if (!s.updated) return;
+    $("update-text").textContent = `已更新到 v${s.updated}（目前執行 v${s.current}），重新啟動後套用`;
+    $("update-banner").hidden = false;
+  } catch {
+    // 離線或 GitHub 無法連線：不打擾使用者，下次開啟再檢查
+  }
+}
+
+$("update-restart").addEventListener("click", () => {
+  if (state.busy) return;
+  invoke("restart_app");
+});
+
 // ─── 啟動 ────────────────────────────────────────────
 
 (async () => {
@@ -1104,7 +1140,11 @@ window.addEventListener("drop", (e) => {
   try { mode = localStorage.getItem(MODE_KEY) === "url" ? "url" : "search"; } catch { /* 用預設 */ }
   setMode(mode);
   try { el.autoHant.checked = localStorage.getItem(AUTO_HANT_KEY) !== "0"; } catch { /* 用預設（開啟） */ }
+  let font = FONT_DEFAULT;
+  try { font = localStorage.getItem(FONT_KEY) ?? FONT_DEFAULT; } catch { /* 用預設 */ }
+  applyFontSize(font);
   renderHistory();
+  checkUpdate();
   try {
     fillSettings(await invoke("get_settings"));
   } catch (e) {

@@ -6,7 +6,8 @@ use reqwest::Url;
 use crate::bilingual::{self, has_cjk, section};
 use crate::crawler::{self, SelectorOverrides, Song};
 use crate::error::Result;
-use crate::search::get_json;
+use crate::search::{core_title, get_json, norm};
+use crate::zh;
 
 /// 抓取結果：原始歌詞，加上可用時的中英對照版本
 #[derive(Debug, Clone)]
@@ -63,7 +64,7 @@ pub async fn fetch(client: &reqwest::Client, url: &str, overrides: &SelectorOver
     let Some(id) = song_id(&html) else {
         return Ok(plain(song, None));
     };
-    let tr_url = match english_translation(client, id).await {
+    let tr_url = match english_translation(client, id, true).await {
         Ok(Translation::Found(u)) => u,
         Ok(Translation::NotNeeded) => return Ok(plain(song, None)),
         Ok(Translation::Missing) => return Ok(plain(song, Some("Genius 沒有這首歌的英文翻譯".into()))),
@@ -94,22 +95,98 @@ fn song_id(html: &str) -> Option<u64> {
     digits.parse().ok()
 }
 
-pub(crate) async fn english_translation(client: &reqwest::Client, id: u64) -> Result<Translation> {
+/// `thorough`：沒有直接連結時嘗試所有搜尋方式；搜尋清單標示「中英」時只試第一種，避免一次發出太多請求
+pub(crate) async fn english_translation(client: &reqwest::Client, id: u64, thorough: bool) -> Result<Translation> {
     let url = Url::parse(&format!("https://genius.com/api/songs/{id}")).expect("ID 只含數字");
     let v = get_json(client, url).await?;
     let song = &v["response"]["song"];
     if song["language"].as_str() == Some("en") {
         return Ok(Translation::NotNeeded);
     }
-    let found = song["translation_songs"]
+    let linked = song["translation_songs"]
         .as_array()
         .into_iter()
         .flatten()
         .filter(|t| t["language"].as_str() == Some("en"))
         .filter_map(|t| t["url"].as_str())
         // 只跟隨 Genius 自己的 https 網址
-        .find(|u| u.starts_with("https://") && is_genius_url(u));
-    Ok(found.map_or(Translation::Missing, |u| Translation::Found(u.to_string())))
+        .find(|u| is_safe_url(u))
+        .map(str::to_string);
+    if let Some(u) = linked {
+        return Ok(Translation::Found(u));
+    }
+    // 有些英文翻譯頁沒有連到原曲（原曲的 translation_songs 只列了簡體版之類），改用搜尋找
+    let title = song["title"].as_str().unwrap_or_default();
+    let artist = song["primary_artist"]["name"].as_str().unwrap_or_default();
+    let found = search_translation(client, title, artist, thorough).await?;
+    Ok(found.map_or(Translation::Missing, Translation::Found))
+}
+
+fn is_safe_url(u: &str) -> bool {
+    u.starts_with("https://") && is_genius_url(u)
+}
+
+/// 括號內的別名：「林俊傑 (JJ Lin)」→「JJ Lin」、「修煉愛情 (Practice Love)」→「Practice Love」
+fn alias(s: &str) -> Option<&str> {
+    let rest = s.trim().get(core_title(s).len()..)?.trim();
+    let inner = rest.strip_prefix(['(', '（'])?.strip_suffix([')', '）'])?.trim();
+    (!inner.is_empty()).then_some(inner)
+}
+
+/// 在 Genius 搜尋 Genius English Translations 的對應頁面。
+/// Genius 的搜尋對中文很不穩定，依序嘗試幾種查詢：英文別名 → 簡體歌名 → 該歌手的翻譯清單
+async fn search_translation(client: &reqwest::Client, title: &str, artist: &str, thorough: bool) -> Result<Option<String>> {
+    let core = core_title(title);
+    if core.is_empty() {
+        return Ok(None);
+    }
+    let artist_name = alias(artist).unwrap_or(core_title(artist));
+    let mut queries = Vec::new();
+    if let Some(t) = alias(title) {
+        queries.push(format!("{artist_name} {t} English Translation"));
+    }
+    queries.push(format!("{artist_name} {core} English Translation"));
+    queries.push(format!("{artist_name} {} English Translation", zh::to_simplified(core)));
+    queries.push(format!("Genius English Translations {artist_name}"));
+    queries.dedup();
+    if !thorough {
+        queries.truncate(1);
+    }
+
+    for q in queries {
+        let url = Url::parse_with_params("https://genius.com/api/search/song", &[("q", q.as_str()), ("per_page", "20")])
+            .expect("內建網址皆為合法常數");
+        let v = get_json(client, url).await?;
+        let empty = Vec::new();
+        let found = v["response"]["sections"]
+            .as_array()
+            .unwrap_or(&empty)
+            .iter()
+            .flat_map(|s| s["hits"].as_array().unwrap_or(&empty))
+            .map(|h| &h["result"])
+            .filter(|r| r["artist_names"].as_str() == Some("Genius English Translations"))
+            .filter(|r| is_translation_of(r["title"].as_str().unwrap_or_default(), title, artist))
+            .filter_map(|r| r["url"].as_str())
+            .find(|u| is_safe_url(u));
+        if let Some(u) = found {
+            return Ok(Some(u.to_string()));
+        }
+    }
+    Ok(None)
+}
+
+/// 「JJ Lin - 修炼爱情 (Practice Love) (English Translation)」是否為《修煉愛情》（林俊傑 (JJ Lin)）的翻譯：
+/// 歌名去掉括號說明後簡繁皆可相符，歌手名互相包含
+fn is_translation_of(candidate: &str, title: &str, artist: &str) -> bool {
+    let Some(rest) = candidate.trim().strip_suffix("(English Translation)") else {
+        return false;
+    };
+    let Some((c_artist, c_title)) = rest.trim().split_once(" - ") else {
+        return false;
+    };
+    let same = |a: &str, b: &str| norm(&zh::to_traditional(core_title(a))) == norm(&zh::to_traditional(core_title(b)));
+    let (ca, a) = (norm(c_artist), norm(artist));
+    same(c_title, title) && !ca.is_empty() && !a.is_empty() && (a.contains(&ca) || ca.contains(&a))
 }
 
 struct Stanza<'a> {
@@ -249,6 +326,18 @@ mod tests {
         assert_eq!(song_id("<html>"), None);
         assert!(is_genius_url("https://genius.com/a"));
         assert!(!is_genius_url("https://evilgenius.com/a"));
+    }
+
+    #[test]
+    fn matches_unlinked_translation_titles() {
+        let t = "JJ Lin - 修炼爱情 (Practice Love) (English Translation)";
+        assert!(is_translation_of(t, "修煉愛情 (Practice Love)", "林俊傑 (JJ Lin)"));
+        assert!(!is_translation_of(t, "江南", "林俊傑 (JJ Lin)"));
+        assert!(!is_translation_of(t, "修煉愛情", "周杰倫 (Jay Chou)"));
+        assert!(!is_translation_of("JJ Lin - 修炼爱情 (Romanized)", "修煉愛情", "JJ Lin"));
+        assert_eq!(alias("林俊傑 (JJ Lin)"), Some("JJ Lin"));
+        assert_eq!(alias("修煉愛情 (Practice Love)"), Some("Practice Love"));
+        assert_eq!(alias("江南"), None);
     }
 
     #[test]

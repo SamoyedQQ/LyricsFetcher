@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod settings;
+mod updater;
 
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
@@ -744,6 +745,18 @@ async fn import_song(
     })
 }
 
+/// 開啟時檢查 GitHub 上的新版，有的話下載、驗證簽章並替換執行檔（重新啟動後生效）
+#[tauri::command]
+async fn check_update(state: State<'_, AppState>) -> CmdResult<updater::UpdateStatus> {
+    updater::check_and_install(&state.client).await
+}
+
+/// 更新完成後重新啟動，改執行新版
+#[tauri::command]
+fn restart_app(app: tauri::AppHandle) {
+    app.restart();
+}
+
 /// 只允許開啟 Notion 與 YouTube 的 https 網址，避免前端被誘導開啟任意程式或檔案
 #[tauri::command]
 fn open_link(app: tauri::AppHandle, url: String) -> CmdResult<()> {
@@ -764,6 +777,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
+            updater::cleanup();
             let settings_path = app.path().app_config_dir()?.join("settings.json");
             let client = crawler::build_client().map_err(|e| e.to_string())?;
             app.manage(AppState {
@@ -792,6 +806,8 @@ fn main() {
             capture_song,
             import_song,
             open_link,
+            check_update,
+            restart_app,
         ])
         .run(tauri::generate_context!())
         .expect("無法啟動應用程式");

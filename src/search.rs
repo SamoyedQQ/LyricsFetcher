@@ -120,12 +120,12 @@ pub async fn search_lyrics(client: &reqwest::Client, query: &str) -> Result<Lyri
 }
 
 /// 比對用：轉小寫、只保留文字與數字（去掉空白、標點、括號）
-fn norm(s: &str) -> String {
+pub(crate) fn norm(s: &str) -> String {
     s.chars().filter(|c| c.is_alphanumeric()).flat_map(char::to_lowercase).collect()
 }
 
 /// 去掉結尾的括號說明，例如「愛你但說不出口 (Hard to say)」→「愛你但說不出口」
-fn core_title(t: &str) -> &str {
+pub(crate) fn core_title(t: &str) -> &str {
     let mut t = t.trim();
     while let Some(open) = t.rfind(['(', '（'])
         && open > 0
@@ -254,7 +254,7 @@ async fn genius(client: &reqwest::Client, q: &str) -> Result<Vec<LyricsHit>> {
     let mut tasks = tokio::task::JoinSet::new();
     for (i, (id, _)) in hits.iter().enumerate() {
         let (client, id) = (client.clone(), *id);
-        tasks.spawn(async move { (i, genius::english_translation(&client, id).await) });
+        tasks.spawn(async move { (i, genius::english_translation(&client, id, false).await) });
     }
     while let Some(done) = tasks.join_next().await {
         if let Ok((i, Ok(genius::Translation::Found(_)))) = done {

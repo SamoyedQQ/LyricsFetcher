@@ -1,0 +1,22 @@
+Lyrics Fetcher 使用說明
+========================
+
+1. 執行 lyrics-fetcher-gui.exe（桌面版）
+   - 若出現「Windows 已保護您的電腦」：點「其他資訊」→「仍要執行」（程式沒有數位簽章）
+   - 畫面空白時請安裝 Microsoft Edge WebView2 Runtime：
+     https://developer.microsoft.com/microsoft-edge/webview2/
+
+2. 第一次設定：點右上角設定圖示，填入 Notion API Key 與 Database ID，按「測試連線」
+   - Notion Integration 建立方式與資料庫授權步驟請見：
+     https://github.com/SamoyedQQ/LyricsFetcher#2-建立-notion-integration
+
+3. 搜尋歌名 → 點歌詞結果預覽 → 點伴奏影片 → 選標籤 → 「匯入 Notion」
+   - 任選兩個歌詞按「＋」，自動合併成中英對照
+
+自動更新：開啟程式時會自動檢查 GitHub 上的新版，下載並驗證簽章後替換程式，
+重新啟動即套用（請把整個資料夾放在可寫入的位置，例如桌面或文件，不要放在 Program Files）。
+
+lyrics-fetcher.exe 為命令列版本，需在同資料夾放 .env（由 .env.example 複製後填入金鑰），
+用法：lyrics-fetcher.exe "歌詞網址"   （加 --dry-run 只預覽不寫入）
+
+完整說明：https://github.com/SamoyedQQ/LyricsFetcher
